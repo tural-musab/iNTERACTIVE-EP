@@ -129,7 +129,7 @@ export default function Home() {
             <div className="text-white space-y-6">
               <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-full px-4 py-2">
                 <Rocket className="w-5 h-5 text-yellow-300" />
-                <span className="text-sm">Türkiye'nin #1 Eğitim Platformu</span>
+                <span className="text-sm">Türkiye&apos;nin #1 Eğitim Platformu</span>
               </div>
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
                 Matematik Öğrenmeyi

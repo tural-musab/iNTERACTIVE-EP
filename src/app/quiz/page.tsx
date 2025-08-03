@@ -128,7 +128,7 @@ export default function QuizPage() {
                 className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-all duration-300"
               >
                 <ArrowLeft className="w-5 h-5" />
-                <span>Dashboard'a Dön</span>
+                <span>Dashboard&apos;a Dön</span>
               </button>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function QuizPage() {
                 <Award className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-3xl font-bold text-white mb-4">Tebrikler!</h2>
-              <p className="text-gray-300">Quiz'i başarıyla tamamladın</p>
+              <p className="text-gray-300">Quiz&apos;i başarıyla tamamladın</p>
             </div>
 
             {/* Results Stats */}
@@ -201,7 +201,7 @@ export default function QuizPage() {
                 onClick={handleBackToDashboard}
                 className="flex-1 bg-white/10 text-white px-6 py-3 rounded-2xl font-semibold border border-white/20 hover:bg-white/20 transition-all duration-300"
               >
-                Dashboard'a Dön
+                Dashboard&apos;a Dön
               </button>
             </div>
           </motion.div>
@@ -244,7 +244,7 @@ export default function QuizPage() {
               className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-all duration-300"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Dashboard'a Dön</span>
+              <span>Dashboard&apos;a Dön</span>
             </button>
           </div>
         </div>
@@ -277,7 +277,7 @@ export default function QuizPage() {
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-2xl font-semibold hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 mx-auto"
             >
               <Zap className="w-6 h-6" />
-              <span>Quiz'i Başlat</span>
+              <span>Quiz&apos;i Başlat</span>
             </button>
           </motion.div>
         )}

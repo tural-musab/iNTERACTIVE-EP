@@ -65,7 +65,7 @@ export function StudentPerformanceCard({
         <div className="text-center text-gray-300">
           <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p>Henüz performans verisi yok</p>
-          <p className="text-sm">İlk quiz'ini çözdükten sonra burada görünecek</p>
+          <p className="text-sm">İlk quiz&apos;ini çözdükten sonra burada görünecek</p>
         </div>
       </motion.div>
     );

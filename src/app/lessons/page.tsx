@@ -151,7 +151,7 @@ export default function LessonsPage() {
               className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-all duration-300"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Dashboard'a Dön</span>
+              <span>Dashboard&apos;a Dön</span>
             </button>
           </div>
         </div>
