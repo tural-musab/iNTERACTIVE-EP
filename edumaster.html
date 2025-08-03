@@ -1,0 +1,652 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  BookOpen, Brain, Trophy, Users, Star, ChevronRight, Menu, X, 
+  Play, Target, Zap, Award, BarChart3, Clock, CheckCircle2,
+  Calculator, Sparkles, Rocket, Heart, TrendingUp, Shield,
+  User, GraduationCap, UserCheck
+} from 'lucide-react';
+
+const ModernEgitimPlatformu = () => {
+  const [activePanel, setActivePanel] = useState('home');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [score, setScore] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const [userAnswers, setUserAnswers] = useState([]);
+  const [animatedStats, setAnimatedStats] = useState({ students: 0, lessons: 0, success: 0 });
+
+  // Animasyonlu sayaç
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedStats({
+        students: 15000,
+        lessons: 500,
+        success: 98
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Quiz verileri
+  const quizzes = [
+    {
+      id: 1,
+      title: "Temel Matematik İşlemleri",
+      description: "Toplama, çıkarma, çarpma ve bölme",
+      difficulty: "Kolay",
+      questions: [
+        {
+          question: "25 + 37 = ?",
+          options: ["52", "62", "72", "82"],
+          correct: 1
+        },
+        {
+          question: "144 ÷ 12 = ?",
+          options: ["10", "11", "12", "13"],
+          correct: 2
+        },
+        {
+          question: "8 × 7 = ?",
+          options: ["54", "56", "58", "60"],
+          correct: 1
+        }
+      ]
+    },
+    {
+      id: 2,
+      title: "Geometri Temelleri",
+      description: "Şekiller, açılar ve alan hesaplamaları",
+      difficulty: "Orta",
+      questions: [
+        {
+          question: "Bir karenin kenar uzunluğu 5 cm ise alanı kaç cm²'dir?",
+          options: ["20", "25", "30", "35"],
+          correct: 1
+        },
+        {
+          question: "Üçgenin iç açıları toplamı kaç derecedir?",
+          options: ["90°", "180°", "270°", "360°"],
+          correct: 1
+        }
+      ]
+    },
+    {
+      id: 3,
+      title: "Problem Çözme",
+      description: "Günlük hayat problemleri",
+      difficulty: "Zor",
+      questions: [
+        {
+          question: "Ali'nin 50 TL'si var. Kitap için 18 TL, defter için 7 TL harcadı. Geriye kaç TL'si kaldı?",
+          options: ["25 TL", "30 TL", "35 TL", "40 TL"],
+          correct: 0
+        }
+      ]
+    }
+  ];
+
+  const startQuiz = (quiz) => {
+    setSelectedQuiz(quiz);
+    setQuizStarted(true);
+    setCurrentQuestion(0);
+    setScore(0);
+    setShowResult(false);
+    setUserAnswers([]);
+  };
+
+  const handleAnswer = (answerIndex) => {
+    const isCorrect = answerIndex === selectedQuiz.questions[currentQuestion].correct;
+    if (isCorrect) setScore(score + 1);
+    
+    setUserAnswers([...userAnswers, answerIndex]);
+
+    if (currentQuestion + 1 < selectedQuiz.questions.length) {
+      setTimeout(() => {
+        setCurrentQuestion(currentQuestion + 1);
+      }, 1000);
+    } else {
+      setTimeout(() => {
+        setShowResult(true);
+      }, 1000);
+    }
+  };
+
+  const resetQuiz = () => {
+    setQuizStarted(false);
+    setSelectedQuiz(null);
+    setCurrentQuestion(0);
+    setScore(0);
+    setShowResult(false);
+    setUserAnswers([]);
+  };
+
+  const Navigation = () => (
+    <nav className="fixed top-0 w-full bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 backdrop-blur-lg z-50 shadow-2xl">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-lg blur-lg opacity-75 animate-pulse"></div>
+              <div className="relative bg-gradient-to-r from-yellow-400 to-pink-500 p-2 rounded-lg">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <span className="text-2xl font-bold text-white">EduMaster</span>
+          </div>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center space-x-8">
+            <button 
+              onClick={() => setActivePanel('home')}
+              className="text-white hover:text-yellow-300 transition-all duration-300 transform hover:scale-110"
+            >
+              Ana Sayfa
+            </button>
+            <button 
+              onClick={() => setActivePanel('student')}
+              className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-violet-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-pink-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <GraduationCap className="w-5 h-5" />
+              <span>Öğrenci Girişi</span>
+            </button>
+            <button 
+              onClick={() => setActivePanel('teacher')}
+              className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <UserCheck className="w-5 h-5" />
+              <span>Öğretmen</span>
+            </button>
+            <button 
+              onClick={() => setActivePanel('parent')}
+              className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <Users className="w-5 h-5" />
+              <span>Veli</span>
+            </button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-white"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-gradient-to-b from-purple-900 to-indigo-900 border-t border-purple-700">
+          <div className="px-4 py-2 space-y-2">
+            <button 
+              onClick={() => { setActivePanel('home'); setMobileMenuOpen(false); }}
+              className="block w-full text-left text-white py-2 hover:text-yellow-300"
+            >
+              Ana Sayfa
+            </button>
+            <button 
+              onClick={() => { setActivePanel('student'); setMobileMenuOpen(false); }}
+              className="block w-full text-left text-white py-2 hover:text-yellow-300"
+            >
+              Öğrenci Girişi
+            </button>
+            <button 
+              onClick={() => { setActivePanel('teacher'); setMobileMenuOpen(false); }}
+              className="block w-full text-left text-white py-2 hover:text-yellow-300"
+            >
+              Öğretmen Paneli
+            </button>
+            <button 
+              onClick={() => { setActivePanel('parent'); setMobileMenuOpen(false); }}
+              className="block w-full text-left text-white py-2 hover:text-yellow-300"
+            >
+              Veli Paneli
+            </button>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+
+  const HomePage = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900">
+      {/* Hero Section */}
+      <section className="pt-20 pb-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div className="text-white space-y-6">
+              <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-full px-4 py-2">
+                <Rocket className="w-5 h-5 text-yellow-300" />
+                <span className="text-sm">Türkiye'nin #1 Eğitim Platformu</span>
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight">
+                Matematik Öğrenmeyi
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-500">
+                  Eğlenceli Hale Getiriyoruz!
+                </span>
+              </h1>
+              <p className="text-xl text-gray-200">
+                Öğrenciler, veliler ve öğretmenler için tasarlanmış modern eğitim platformu. 
+                İnteraktif quizler ve oyunlaştırılmış öğrenme deneyimi ile başarıya ulaşın.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <button 
+                  onClick={() => setActivePanel('student')}
+                  className="group relative px-8 py-4 bg-gradient-to-r from-pink-500 to-violet-600 rounded-full text-white font-semibold overflow-hidden transition-all duration-300 transform hover:scale-105"
+                >
+                  <span className="relative z-10 flex items-center space-x-2">
+                    <Play className="w-5 h-5" />
+                    <span>Hemen Başla</span>
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+                <button className="px-8 py-4 border-2 border-white/30 rounded-full text-white font-semibold backdrop-blur-lg hover:bg-white/10 transition-all duration-300">
+                  Demo İzle
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-3xl blur-3xl opacity-30 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-purple-800/50 to-pink-800/50 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                    <Brain className="w-12 h-12 text-yellow-300 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{animatedStats.lessons}+</div>
+                    <div className="text-gray-300">İnteraktif Ders</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                    <Users className="w-12 h-12 text-pink-400 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{animatedStats.students.toLocaleString()}</div>
+                    <div className="text-gray-300">Mutlu Öğrenci</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                    <Trophy className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">%{animatedStats.success}</div>
+                    <div className="text-gray-300">Başarı Oranı</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                    <Star className="w-12 h-12 text-orange-400 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">4.9</div>
+                    <div className="text-gray-300">Kullanıcı Puanı</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-white mb-4">
+              Neden EduMaster?
+            </h2>
+            <p className="text-xl text-gray-300">
+              Eğitimi geleceğe taşıyan özelliklerimiz
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+              <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:border-cyan-400/50 transition-all duration-300">
+                <div className="w-16 h-16 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center mb-6">
+                  <Zap className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Oyunlaştırılmış Öğrenme</h3>
+                <p className="text-gray-300">
+                  Puanlar, rozetler ve liderlik tablosu ile öğrenmeyi eğlenceli hale getiriyoruz. 
+                  Her başarı ödüllendirilir!
+                </p>
+              </div>
+            </div>
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+              <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:border-pink-400/50 transition-all duration-300">
+                <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-violet-500 rounded-2xl flex items-center justify-center mb-6">
+                  <Target className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Kişiselleştirilmiş Öğrenme</h3>
+                <p className="text-gray-300">
+                  Yapay zeka destekli sistem, her öğrencinin öğrenme hızına ve tarzına uygun içerik sunar.
+                </p>
+              </div>
+            </div>
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+              <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:border-green-400/50 transition-all duration-300">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center mb-6">
+                  <BarChart3 className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Detaylı İlerleme Takibi</h3>
+                <p className="text-gray-300">
+                  Öğrenciler, veliler ve öğretmenler için gerçek zamanlı performans analizleri ve raporlar.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+
+  const StudentPanel = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900 pt-20">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {!quizStarted ? (
+          <>
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold text-white mb-4">Öğrenci Paneli</h1>
+              <p className="text-xl text-gray-300">Merhaba! Bugün hangi konuyu öğrenmek istersin? 🚀</p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-gradient-to-r from-pink-500 to-violet-500 rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between mb-2">
+                  <Trophy className="w-8 h-8" />
+                  <span className="text-3xl font-bold">1,250</span>
+                </div>
+                <p>Toplam Puan</p>
+              </div>
+              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between mb-2">
+                  <Award className="w-8 h-8" />
+                  <span className="text-3xl font-bold">15</span>
+                </div>
+                <p>Kazanılan Rozet</p>
+              </div>
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between mb-2">
+                  <TrendingUp className="w-8 h-8" />
+                  <span className="text-3xl font-bold">7</span>
+                </div>
+                <p>Günlük Seri</p>
+              </div>
+              <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between mb-2">
+                  <Heart className="w-8 h-8" />
+                  <span className="text-3xl font-bold">89%</span>
+                </div>
+                <p>Başarı Oranı</p>
+              </div>
+            </div>
+
+            {/* Quiz Cards */}
+            <h2 className="text-2xl font-bold text-white mb-6">Günün Quizleri 🎯</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              {quizzes.map((quiz) => (
+                <div key={quiz.id} className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+                  <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:border-yellow-400/50 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-4">
+                      <Calculator className="w-8 h-8 text-yellow-300" />
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        quiz.difficulty === 'Kolay' ? 'bg-green-500/20 text-green-300' :
+                        quiz.difficulty === 'Orta' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-red-500/20 text-red-300'
+                      }`}>
+                        {quiz.difficulty}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">{quiz.title}</h3>
+                    <p className="text-gray-300 mb-4">{quiz.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">{quiz.questions.length} Soru</span>
+                      <button 
+                        onClick={() => startQuiz(quiz)}
+                        className="flex items-center space-x-2 bg-gradient-to-r from-yellow-400 to-pink-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-yellow-500/50 transition-all duration-300 transform hover:scale-105"
+                      >
+                        <Play className="w-4 h-4" />
+                        <span>Başla</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            {!showResult ? (
+              <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-white">{selectedQuiz.title}</h2>
+                    <span className="text-gray-300">
+                      Soru {currentQuestion + 1} / {selectedQuiz.questions.length}
+                    </span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-3">
+                    <div 
+                      className="bg-gradient-to-r from-yellow-400 to-pink-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${((currentQuestion + 1) / selectedQuiz.questions.length) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <h3 className="text-3xl font-bold text-white mb-6">
+                    {selectedQuiz.questions[currentQuestion].question}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedQuiz.questions[currentQuestion].options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswer(index)}
+                        className={`p-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                          userAnswers[currentQuestion] === index
+                            ? index === selectedQuiz.questions[currentQuestion].correct
+                              ? 'bg-green-500 text-white'
+                              : 'bg-red-500 text-white'
+                            : 'bg-white/20 text-white hover:bg-white/30'
+                        }`}
+                        disabled={userAnswers[currentQuestion] !== undefined}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20 text-center">
+                <div className="mb-6">
+                  {score === selectedQuiz.questions.length ? (
+                    <Trophy className="w-24 h-24 text-yellow-400 mx-auto mb-4" />
+                  ) : score >= selectedQuiz.questions.length / 2 ? (
+                    <Award className="w-24 h-24 text-green-400 mx-auto mb-4" />
+                  ) : (
+                    <Target className="w-24 h-24 text-orange-400 mx-auto mb-4" />
+                  )}
+                  <h2 className="text-4xl font-bold text-white mb-2">Quiz Tamamlandı!</h2>
+                  <p className="text-2xl text-gray-300">
+                    Skorun: {score} / {selectedQuiz.questions.length}
+                  </p>
+                  <div className="mt-4">
+                    <div className="inline-flex items-center space-x-2 bg-yellow-500/20 rounded-full px-4 py-2">
+                      <Sparkles className="w-5 h-5 text-yellow-300" />
+                      <span className="text-yellow-300 font-semibold">+{score * 50} Puan Kazandın!</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={resetQuiz}
+                  className="bg-gradient-to-r from-pink-500 to-violet-500 text-white px-8 py-3 rounded-full font-semibold hover:shadow-lg hover:shadow-pink-500/50 transition-all duration-300 transform hover:scale-105"
+                >
+                  Yeni Quiz
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const TeacherPanel = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900 pt-20">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold text-white mb-8">Öğretmen Paneli</h1>
+        
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <Users className="w-8 h-8 text-cyan-400" />
+              <span className="text-3xl font-bold text-white">32</span>
+            </div>
+            <h3 className="text-xl font-semibold text-white">Toplam Öğrenci</h3>
+            <p className="text-gray-300">3 yeni öğrenci bu hafta</p>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <BookOpen className="w-8 h-8 text-pink-400" />
+              <span className="text-3xl font-bold text-white">15</span>
+            </div>
+            <h3 className="text-xl font-semibold text-white">Aktif Quiz</h3>
+            <p className="text-gray-300">5 quiz bu hafta oluşturuldu</p>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <BarChart3 className="w-8 h-8 text-green-400" />
+              <span className="text-3xl font-bold text-white">85%</span>
+            </div>
+            <h3 className="text-xl font-semibold text-white">Ortalama Başarı</h3>
+            <p className="text-gray-300">%5 artış gösterdi</p>
+          </div>
+        </div>
+
+        <div className="mt-8 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+          <h2 className="text-2xl font-bold text-white mb-6">Öğrenci Performansları</h2>
+          <div className="space-y-4">
+            {['Ahmet Y.', 'Zeynep K.', 'Mehmet A.', 'Ayşe B.'].map((student, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {student.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">{student}</p>
+                    <p className="text-gray-400 text-sm">Son giriş: 2 saat önce</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <p className="text-white font-semibold">{85 + index * 3}%</p>
+                    <p className="text-gray-400 text-sm">Başarı Oranı</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ParentPanel = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900 pt-20">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold text-white mb-8">Veli Paneli</h1>
+        
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-violet-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                A
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Ahmet Yılmaz</h2>
+                <p className="text-gray-300">5. Sınıf Öğrencisi</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-gray-400">Bu Haftaki Çalışma</p>
+              <p className="text-3xl font-bold text-green-400">12 Saat</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="bg-white/5 rounded-xl p-4">
+              <Clock className="w-6 h-6 text-blue-400 mb-2" />
+              <p className="text-gray-400">Günlük Ortalama</p>
+              <p className="text-2xl font-bold text-white">1.5 Saat</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-4">
+              <CheckCircle2 className="w-6 h-6 text-green-400 mb-2" />
+              <p className="text-gray-400">Tamamlanan Quiz</p>
+              <p className="text-2xl font-bold text-white">23</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-4">
+              <Star className="w-6 h-6 text-yellow-400 mb-2" />
+              <p className="text-gray-400">Başarı Oranı</p>
+              <p className="text-2xl font-bold text-white">87%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <h3 className="text-xl font-bold text-white mb-4">Haftalık İlerleme</h3>
+            <div className="space-y-3">
+              {['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'].map((day, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-gray-300">{day}</span>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-32 bg-white/20 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full"
+                        style={{ width: `${Math.random() * 50 + 50}%` }}
+                      ></div>
+                    </div>
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <h3 className="text-xl font-bold text-white mb-4">Güçlü ve Gelişim Alanları</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-green-400 font-semibold mb-2">Güçlü Alanlar ✨</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">Toplama</span>
+                  <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">Çıkarma</span>
+                  <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">Geometri</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-orange-400 font-semibold mb-2">Gelişim Alanları 📚</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-sm">Çarpma</span>
+                  <span className="px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-sm">Problem Çözme</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen">
+      <Navigation />
+      {activePanel === 'home' && <HomePage />}
+      {activePanel === 'student' && <StudentPanel />}
+      {activePanel === 'teacher' && <TeacherPanel />}
+      {activePanel === 'parent' && <ParentPanel />}
+    </div>
+  );
+};
+
+export default ModernEgitimPlatformu;
