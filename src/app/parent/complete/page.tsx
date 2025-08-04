@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import supabase from "@/lib/supabaseClient";
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -14,7 +14,7 @@ import {
   UserCheck2, HeartHandshake, CheckCircle2 as CheckCircleIcon
 } from 'lucide-react'
 
-export default function ParentCompletePage() {
+function ParentCompleteContent() {
   const [status, setStatus] = useState("Kayıt onaylanıyor...");
   const router = useRouter();
   const params = useSearchParams();
@@ -165,5 +165,23 @@ export default function ParentCompletePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ParentCompletePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-32 h-32 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <CheckCircleIcon className="w-16 h-16 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Yükleniyor...</h2>
+          <p className="text-gray-300">Kayıt bilgileri kontrol ediliyor</p>
+        </div>
+      </div>
+    }>
+      <ParentCompleteContent />
+    </Suspense>
   );
 }
