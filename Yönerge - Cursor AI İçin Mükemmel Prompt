@@ -1,0 +1,15 @@
+**GÖREV: Supabase Veritabanı Değişikliği**
+
+**ÖNCELİK: KRİTİK**
+
+**TALİMATLAR:**
+
+1.  **OKU:** Projenin ana dizinindeki **`DATABASE_GUIDELINES.md`** dosyasını dikkatlice oku ve anla. Yapacağın tüm işlemler bu belgedeki kurallara %100 uymak zorundadır.
+2.  **İŞLEM:**
+    - **[YAPILACAK İŞİ BURAYA DETAYLI BİR ŞEKİLDE YAZ]**
+    - Örnek: "`user_streaks` tablosuna, kullanıcının en son ne zaman aktif olduğunu tutan `last_active_at` adında bir `timestamp` sütunu ekle."
+3.  **UYGULAMA YÖNTEMİ:**
+    - Bu değişikliği uygulamak için, `supabase/migrations` klasörünün içine, `YYYYMMDDHHMMSS_add_last_active_column.sql` formatında yeni bir migration dosyası oluştur.
+    - Bu SQL dosyası, hem `ALTER TABLE` komutunu hem de bu yeni sütun için gerekli olan RLS politikalarını içermelidir.
+    - **UYARI:** Bu değişikliği doğrudan veritabanına uygulama (`npx supabase db push` komutunu KULLANMA). Sadece migration dosyasını oluştur.
+4.  **KONTROL:** Oluşturduğun migration dosyasının, `DATABASE_GUIDELINES.md` belgesindeki tüm kurallara uyduğundan emin ol.

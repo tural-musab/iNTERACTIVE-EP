@@ -41,45 +41,36 @@ export default function ParentRegisterPage() {
     }
 
     // --- Devamı eski gibi ---
-    // 2. Auth ile Supabase'e kullanıcı olarak ekle
+    // 2. Auth ile Supabase'e kullanıcı olarak ekle ve full_name bilgisini options.data ile gönder
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName, // Formdan gelen tam isim
+          role: 'parent'       // Kullanıcı rolü
+        }
+      }
     })
     if (signUpError) {
       setStatus('Hata: ' + signUpError.message)
       return
     }
 
-    // 3. parents tablosuna kayıt aç
-    const { data: parentInsert, error: parentError } = await supabase
-      .from('parents')
-      .insert([
-        {
-          user_id: signUpData.user?.id,
-          email,
-          full_name: fullName,
-        }
-      ])
-      .select()
-      .single()
-
-    if (parentError) {
-      setStatus('Veritabanı hatası: ' + parentError.message)
-      return
-    }
+    // 3. Kayıt başarılı - Artık eski parents tablosuna insert yapmıyoruz
+    // Veritabanı tetikleyicisi (trigger) otomatik olarak user_profiles tablosunu dolduracak
 
     // 4. parent_student_links tablosunu güncelle
     await supabase
       .from('parent_student_links')
       .update({
-        parent_id: parentInsert.id,
+        parent_id: signUpData.user?.id, // Artık user_id'yi kullanıyoruz
         status: 'confirmed',
         confirmed_at: new Date(),
       })
       .eq('id', linkData.id)
 
-    setStatus('Kayıt başarılı! Lütfen e-posta adresini onayla.')
+    setStatus('Kayıt başarılı! Lütfen e-posta adresinizi onaylayın.')
   }
 
   return (

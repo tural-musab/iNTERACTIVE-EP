@@ -10,7 +10,7 @@ interface PointHistory {
   points: number;
   reason: 'quiz_completion' | 'streak_bonus' | 'achievement' | 'daily_login' | 'speed_bonus' | 'perfect_score';
   quizId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -92,11 +92,14 @@ interface GamificationState {
   
   // Actions
   initialize: (userId: string) => Promise<void>;
-  addPoints: (points: number, reason: PointHistory['reason'], metadata?: Record<string, any>) => Promise<void>;
+  addPoints: (points: number, reason: PointHistory['reason'], metadata?: Record<string, unknown>) => Promise<void>;
   updateStreak: (activityType: 'quiz' | 'login') => Promise<void>;
   checkAndAwardBadges: () => Promise<void>;
   loadLeaderboard: (category?: string) => Promise<void>;
   loadUserStats: () => Promise<void>;
+  loadBadges: () => Promise<void>;
+  loadStreakData: () => Promise<void>;
+  loadPointHistory: () => Promise<void>;
   resetNotifications: () => void;
   clearError: () => void;
 }
@@ -161,21 +164,23 @@ export const useGamificationStore = create<GamificationState>()(
             await get().checkAndAwardBadges();
             
           } catch (error) {
+            console.error('Gamification initialization error:', error)
             set({ error: error instanceof Error ? error.message : 'Gamification verileri yüklenirken hata oluştu' });
           } finally {
             set({ isLoading: false });
           }
         },
 
-        addPoints: async (points: number, reason: PointHistory['reason'], metadata?: Record<string, any>) => {
+        addPoints: async (points: number, reason: PointHistory['reason'], metadata?: Record<string, unknown>) => {
           const { userId } = get();
           if (!userId) return;
 
           try {
-            // Add points to database
-            await PointTracker.addPoints(userId, points, reason, metadata);
+            // NOT: Artık doğrudan veritabanına yazmıyoruz
+            // Puanlar Edge Function tarafından güvenli şekilde veriliyor
+            // Bu fonksiyon sadece UI güncellemesi için kullanılıyor
             
-            // Update local state
+            // Local state güncelle
             const newTotalPoints = get().totalPoints + points;
             const newTotalXP = get().totalXP + points;
             
@@ -185,18 +190,6 @@ export const useGamificationStore = create<GamificationState>()(
             // Check if level up
             const oldLevel = get().level;
             const newLevel = newLevelData.level;
-            
-            // Update user_profiles table
-            const { error: profileError } = await supabase
-              .from('user_profiles')
-              .update({
-                total_xp: newTotalXP,
-                level: newLevel,
-                updated_at: new Date()
-              })
-              .eq('user_id', userId);
-
-            if (profileError) throw profileError;
             
             set(state => ({
               totalPoints: newTotalPoints,
@@ -275,10 +268,10 @@ export const useGamificationStore = create<GamificationState>()(
             if (error) throw error;
 
             const leaderboard: LeaderboardEntry[] = data?.map((entry, index) => ({
-              userId: entry.user_id,
-              username: entry.username,
-              avatar: entry.avatar_url,
-              score: entry.daily_points,
+              userId: entry.user_id as string,
+              username: entry.username as string,
+              avatar: entry.avatar_url as string | undefined,
+              score: entry.daily_points as number,
               rank: index + 1,
               level: 1 // TODO: Get from users table
             })) || [];
@@ -305,7 +298,10 @@ export const useGamificationStore = create<GamificationState>()(
               .eq('user_id', userId)
               .single();
 
-            if (profileError) throw profileError;
+            if (profileError && profileError.code !== 'PGRST116') {
+              console.error('Profile data error:', profileError);
+              throw profileError;
+            }
 
             // Load user stats data
             const { data: statsData, error: statsError } = await supabase
@@ -314,15 +310,26 @@ export const useGamificationStore = create<GamificationState>()(
               .eq('user_id', userId)
               .single();
 
-            if (statsError && statsError.code !== 'PGRST116') throw statsError; // PGRST116 = no rows returned
+            if (statsError && statsError.code !== 'PGRST116') {
+              console.error('Stats data error:', statsError);
+              throw statsError;
+            }
 
             // Update state with profile data
             if (profileData) {
               set({
-                totalXP: profileData.total_xp,
-                level: profileData.level,
+                totalXP: (profileData.total_xp as number) || 0,
+                level: (profileData.level as number) || 1,
                 currentXP: 0, // Will be calculated
                 xpToNextLevel: 100 // Will be calculated
+              });
+            } else {
+              // Varsayılan profil değerleri
+              set({
+                totalXP: 0,
+                level: 1,
+                currentXP: 0,
+                xpToNextLevel: 100
               });
             }
 
@@ -330,19 +337,34 @@ export const useGamificationStore = create<GamificationState>()(
             if (statsData) {
               set({
                 userStats: {
-                  totalQuizzesCompleted: statsData.total_quizzes_completed,
-                  totalCorrectAnswers: statsData.total_correct_answers,
-                  totalIncorrectAnswers: statsData.total_incorrect_answers,
-                  averageAccuracy: statsData.average_accuracy,
-                  totalTimeSpent: statsData.total_time_spent,
-                  totalPointsEarned: statsData.total_points_earned,
-                  favoriteSubject: statsData.favorite_subject,
-                  lastActivity: new Date(statsData.last_activity)
+                  totalQuizzesCompleted: (statsData.total_quizzes_completed as number) || 0,
+                  totalCorrectAnswers: (statsData.total_correct_answers as number) || 0,
+                  totalIncorrectAnswers: (statsData.total_incorrect_answers as number) || 0,
+                  averageAccuracy: (statsData.average_accuracy as number) || 0,
+                  totalTimeSpent: (statsData.total_time_spent as number) || 0,
+                  totalPointsEarned: (statsData.total_points_earned as number) || 0,
+                  favoriteSubject: (statsData.favorite_subject as string) || null,
+                  lastActivity: statsData.last_activity ? new Date(statsData.last_activity as string) : new Date()
+                }
+              });
+            } else {
+              // Varsayılan stats değerleri
+              set({
+                userStats: {
+                  totalQuizzesCompleted: 0,
+                  totalCorrectAnswers: 0,
+                  totalIncorrectAnswers: 0,
+                  averageAccuracy: 0,
+                  totalTimeSpent: 0,
+                  totalPointsEarned: 0,
+                  favoriteSubject: null,
+                  lastActivity: new Date()
                 }
               });
             }
             
           } catch (error) {
+            console.error('User stats loading error:', error);
             set({ error: 'Kullanıcı verileri yüklenirken hata oluştu' });
           }
         },
@@ -401,18 +423,30 @@ export const useGamificationStore = create<GamificationState>()(
               .eq('user_id', userId)
               .single();
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') {
+              console.error('Streak data error:', error);
+              throw error;
+            }
 
             if (data) {
               set({
-                currentStreak: data.current_streak,
-                longestStreak: data.longest_streak,
-                lastActivityDate: new Date(data.last_activity_date),
-                streakType: data.streak_type
+                currentStreak: data.current_streak || 0,
+                longestStreak: data.longest_streak || 0,
+                lastActivityDate: data.last_activity_date ? new Date(data.last_activity_date) : null,
+                streakType: data.streak_type || 'daily'
+              });
+            } else {
+              // Kullanıcının streak kaydı yoksa varsayılan değerler
+              set({
+                currentStreak: 0,
+                longestStreak: 0,
+                lastActivityDate: null,
+                streakType: 'daily'
               });
             }
             
           } catch (error) {
+            console.error('Streak data loading error:', error);
             set({ error: 'Streak verileri yüklenirken hata oluştu' });
           }
         },

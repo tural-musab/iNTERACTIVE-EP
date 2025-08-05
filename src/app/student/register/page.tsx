@@ -25,10 +25,17 @@ export default function RegisterPage() {
     e.preventDefault()
     setStatus('Yükleniyor...')
   
-    // 1. Önce kullanıcıyı auth ile kaydet
+    // 1. Kullanıcıyı auth ile kaydet ve full_name bilgisini options.data ile gönder
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName, // Formdan gelen tam isim
+          role: 'student',     // Kullanıcı rolü
+          grade: Number(grade) // Sınıf bilgisi
+        }
+      }
     })
   
     if (error) {
@@ -36,26 +43,9 @@ export default function RegisterPage() {
       return
     }
   
-    // 2. user_id bilgisini response'tan al
-    const user_id = data.user?.id
-  
-    // 3. Başarılıysa students tablosuna ekle
-    const { error: dbError } = await supabase
-      .from('students')
-      .insert([
-        {
-          user_id,             // <-- ARTIK user_id de ekliyoruz!
-          email,
-          full_name: fullName,
-          grade: Number(grade),
-        }
-      ])
-    if (dbError) {
-      setStatus('Veritabanı hatası: ' + dbError.message)
-      return
-    }
-  
-    setStatus('Kayıt başarılı, e-posta onayla!')
+    // 2. Kayıt başarılı - Artık eski students tablosuna insert yapmıyoruz
+    // Veritabanı tetikleyicisi (trigger) otomatik olarak user_profiles tablosunu dolduracak
+    setStatus('Kayıt başarılı! Lütfen e-posta adresinizi onaylayın.')
   }
       
   return (

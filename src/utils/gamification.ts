@@ -47,17 +47,14 @@ export class PointTracker {
     reason: string,
     metadata?: Record<string, any>
   ) {
-    const pointRecord = {
-      id: generateId(),
-      userId,
-      points,
-      reason: reason as any,
-      created_at: new Date(),
-      metadata
-    };
-
-    await supabase.from('point_history').insert(pointRecord);
-    await this.updateTotalPoints(userId, points);
+    // NOT: Artık doğrudan veritabanına yazmıyoruz
+    // Bu fonksiyon Edge Function tarafından çağrılmalı
+    console.warn('PointTracker.addPoints is deprecated. Use Edge Function instead.');
+    
+    // Edge Function çağrısı örneği:
+    // const { data, error } = await supabase.functions.invoke('award-quiz-points', {
+    //   body: { quiz_attempt_id: attemptId }
+    // });
   }
 
   static async getTotalPoints(userId: string): Promise<number> {
@@ -70,10 +67,9 @@ export class PointTracker {
   }
 
   private static async updateTotalPoints(userId: string, points: number) {
-    await supabase
-      .from('users')
-      .update({ total_xp: supabase.rpc('increment', { x: points }) })
-      .eq('id', userId);
+    // NOT: Artık doğrudan veritabanına yazmıyoruz
+    // Bu işlem Edge Function tarafından yapılıyor
+    console.warn('PointTracker.updateTotalPoints is deprecated. Use Edge Function instead.');
   }
 }
 
@@ -199,16 +195,14 @@ export class BadgeSystem {
   }
 
   static async awardBadge(userId: string, badge: any) {
-    await supabase.from('user_badges').insert({
-      user_id: userId,
-      badge_id: badge.id,
-      awarded_at: new Date()
-    });
-
-    await PointTracker.addPoints(userId, badge.pointsReward, 'badge_award', {
-      badgeId: badge.id,
-      badgeName: badge.name
-    });
+    // NOT: Artık doğrudan veritabanına yazmıyoruz
+    // Bu işlem Edge Function tarafından yapılmalı
+    console.warn('BadgeSystem.awardBadge is deprecated. Use Edge Function instead.');
+    
+    // Edge Function çağrısı örneği:
+    // const { data, error } = await supabase.functions.invoke('award-badge', {
+    //   body: { userId, badgeId: badge.id }
+    // });
 
     // Bildirim gönder
     this.showBadgeNotification(badge);

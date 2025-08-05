@@ -1,6 +1,43 @@
 -- i-EP MVP Gamification Veritabanı Şeması
 -- Bu script'i Supabase SQL Editor'da çalıştırın
 
+-- 0. Content tablosu (ana içerik tablosu)
+CREATE TABLE IF NOT EXISTS content (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  grade INTEGER NOT NULL,
+  topic TEXT NOT NULL,
+  content_type TEXT NOT NULL CHECK (content_type IN ('lesson', 'quiz')),
+  content_data JSONB NOT NULL DEFAULT '{}',
+  creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Content tablosu için index'ler
+CREATE INDEX IF NOT EXISTS idx_content_creator_id ON content(creator_id);
+CREATE INDEX IF NOT EXISTS idx_content_subject ON content(subject);
+CREATE INDEX IF NOT EXISTS idx_content_grade ON content(grade);
+CREATE INDEX IF NOT EXISTS idx_content_type ON content(content_type);
+CREATE INDEX IF NOT EXISTS idx_content_created_at ON content(created_at);
+
+-- Content tablosu için RLS
+ALTER TABLE content ENABLE ROW LEVEL SECURITY;
+
+-- Content tablosu için temel policy'ler (user_profiles tablosu oluşturulduktan sonra güncellenecek)
+CREATE POLICY "Content is viewable by everyone" ON content
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can insert content" ON content
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Content creators can update their content" ON content
+  FOR UPDATE USING (auth.uid() = creator_id);
+
+CREATE POLICY "Content creators can delete their content" ON content
+  FOR DELETE USING (auth.uid() = creator_id);
+
 -- 1. Kullanıcı rozetleri tablosu
 CREATE TABLE IF NOT EXISTS user_badges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

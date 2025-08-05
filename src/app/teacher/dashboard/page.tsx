@@ -42,6 +42,7 @@ interface Content {
   content_type: 'lesson' | 'quiz'
   content_data: ContentData
   created_at: string
+  creator_id?: string | null
 }
 
 export default function TeacherDashboard() {
@@ -61,16 +62,43 @@ export default function TeacherDashboard() {
   const loadContents = useCallback(async () => {
     try {
       setLoading(true)
+      setError('')
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('Kullanıcı bulunamadı')
+        return
+      }
+
+      // Load contents created by this teacher
       const { data, error } = await supabase
         .from('content')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setContents((data as unknown as Content[]) || [])
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
+      
+      // Veriyi güvenli bir şekilde dönüştür
+      const safeData = (data || []).map(item => ({
+        id: item.id || '',
+        title: item.title || '',
+        subject: item.subject || '',
+        grade: item.grade || 0,
+        topic: item.topic || '',
+        content_type: item.content_type || 'lesson',
+        content_data: item.content_data || {},
+        created_at: item.created_at || new Date().toISOString(),
+        creator_id: item.creator_id || null
+      }))
+      
+      setContents(safeData)
     } catch (err) {
-      setError('İçerikler yüklenirken hata oluştu')
       console.error('Error loading contents:', err)
+      setError('İçerikler yüklenirken hata oluştu')
     } finally {
       setLoading(false)
     }

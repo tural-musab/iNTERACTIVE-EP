@@ -11,6 +11,7 @@ import { QuizModeSelector, QuizMode } from '@/components/quiz/QuizModeSelector';
 import { StepByStepQuiz } from '@/components/quiz/StepByStepQuiz';
 import { useQuizStore } from '@/stores/quizStore';
 import { useGamificationStore } from '@/stores/gamificationStore';
+import supabase from '@/lib/supabaseClient';
 
 // Örnek quiz verisi
 const sampleQuiz = {
@@ -86,14 +87,58 @@ export default function QuizPage() {
     setResults(quizResults);
     setQuizCompleted(true);
     
-    // Gamification: Puan ekle
-    const pointsEarned = quizResults.score * 10; // Her doğru cevap 10 puan
-    await addPoints(pointsEarned, 'quiz_completion', {
-      quizId: sampleQuiz.id,
-      score: quizResults.score,
-      totalQuestions: quizResults.totalQuestions,
-      timeSpent: quizResults.timeSpent
-    });
+    // Güvenli Edge Function çağrısı ile puan verme
+    try {
+      // Quiz attempt kaydı oluştur (bu kısım quiz sistemi tarafından yapılmalı)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('Kullanıcı bulunamadı');
+        return;
+      }
+
+      // Quiz attempt kaydı oluştur
+      const { data: attemptData, error: attemptError } = await supabase
+        .from('quiz_attempts')
+        .insert({
+          student_id: user.id,
+          quiz_id: sampleQuiz.id,
+          score: quizResults.score,
+          total_questions: quizResults.totalQuestions,
+          time_spent: quizResults.timeSpent,
+          answers: quizResults.answers,
+          completed_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (attemptError) {
+        console.error('Quiz attempt kaydı oluşturulamadı:', attemptError);
+        return;
+      }
+
+      // Edge Function ile güvenli puan verme
+      const { data, error } = await supabase.functions.invoke('award-quiz-points', {
+        body: { 
+          quiz_attempt_id: attemptData.id 
+        }
+      });
+
+      if (error) {
+        console.error("Puan verilirken hata oluştu:", error);
+      } else {
+        console.log("Başarılı:", data.message);
+        // Gamification store'u güncelle (sadece UI için)
+        const pointsEarned = quizResults.score * 10;
+        await addPoints(pointsEarned, 'quiz_completion', {
+          quizId: sampleQuiz.id,
+          score: quizResults.score,
+          totalQuestions: quizResults.totalQuestions,
+          timeSpent: quizResults.timeSpent
+        });
+      }
+    } catch (error) {
+      console.error('Quiz tamamlama hatası:', error);
+    }
   };
 
   const handleRetryQuiz = () => {

@@ -40,65 +40,45 @@ export default function LoginPage() {
       return
     }
 
-    // SuperAdmin kontrolü
-    const { data: superAdmin } = await supabase
-      .from('superadmins')
-      .select('*')
+    // Yeni mimari: Tek bir user_profiles sorgusu ile rol kontrolü
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role, full_name')
       .eq('user_id', user.id)
       .single()
-    if (superAdmin) {
-      router.push('/superadmin/dashboard')
+
+    if (profileError) {
+      console.error('Profil yükleme hatası:', profileError)
+      setStatus('Profil bilgileri yüklenirken hata oluştu.')
       return
     }
 
-    // Parent kontrolü
-    const { data: parent } = await supabase
-      .from('parents')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    if (parent) {
-      router.push('/parent/dashboard')
+    if (!profile) {
+      setStatus('Kullanıcı profili bulunamadı.')
       return
     }
 
-    // Student kontrolü
-    const { data: student } = await supabase
-      .from('students')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    if (student) {
-      router.push('/student/dashboard')
-      return
-    }
-
-    // Teacher kontrolü
-    const { data: teacher } = await supabase
-      .from('teachers')
-      .select('*')
-      .eq('email', user.email) // Eşleşme için email (user_id başta null olabilir!)
-      .single()
-
-    if (teacher) {
-      // user_id eşleştirmesini burada güncelle (ilk girişte atanır)
-      if (!teacher.user_id) {
-        await supabase
-          .from('teachers')
-          .update({ user_id: user.id })
-          .eq('id', teacher.id)
-      }
-      // Admin onayını kontrol et
-      if (teacher.is_approved) {
+    // Kullanıcıyı rolüne göre doğru dashboard'a yönlendir
+    switch (profile.role) {
+      case 'superadmin':
+        router.push('/superadmin/dashboard')
+        break
+      case 'admin':
+        router.push('/admin/dashboard')
+        break
+      case 'teacher':
         router.push('/teacher/dashboard')
-      } else {
-        setStatus('Başvurunuz henüz onaylanmadı. Lütfen admini bekleyin.')
-      }
-      return
+        break
+      case 'parent':
+        router.push('/parent/dashboard')
+        break
+      case 'student':
+        router.push('/student/dashboard')
+        break
+      default:
+        setStatus('Geçersiz kullanıcı rolü.')
+        break
     }
-
-    // Bilinmeyen rol
-    setStatus('Rol bilgisi bulunamadı veya başvurunuz eksik.')
   }
 
   // Şifre sıfırlama fonksiyonu

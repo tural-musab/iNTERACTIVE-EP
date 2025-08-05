@@ -14,7 +14,7 @@ export default function TestPage() {
       try {
         // 1. Supabase bağlantısını test et
         setStatus('Supabase bağlantısı test ediliyor...')
-        const { data, error } = await supabase.from('students').select('count').limit(1)
+        const { data, error } = await supabase.from('user_profiles').select('count').limit(1)
         
         if (error) {
           setError(`Bağlantı hatası: ${error.message}`)
@@ -26,9 +26,9 @@ export default function TestPage() {
 
         // 2. Mevcut tabloları kontrol et
         const tableNames = [
-          'students', 'parents', 'parent_student_links', 
-          'content', 'quiz_attempts', 'teacher_applications',
-          'superadmins', 'teachers'
+          'user_profiles', 'content', 'quiz_assignments', 
+          'teacher_student_links', 'parent_student_links',
+          'point_history', 'user_badges', 'user_streaks'
         ]
 
         const existingTables: string[] = []

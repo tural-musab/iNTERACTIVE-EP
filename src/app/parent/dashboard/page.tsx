@@ -3,18 +3,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabaseClient'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { UserProfile } from '@/types/user'
 import { 
   Sparkles, Users, GraduationCap, Clock, Award, CheckCircle2,
   UserPlus, ArrowLeft, LogOut, BookOpen, Target, BarChart3,
   TrendingUp, Heart, Star, Calendar, Bell
 } from 'lucide-react'
-
-interface StudentProfile {
-  id: string
-  full_name: string
-  grade: number
-  email: string
-}
 
 interface ParentData {
   id: string
@@ -32,7 +26,7 @@ interface PendingInvite {
 }
 
 export default function ParentDashboard() {
-  const [children, setChildren] = useState<StudentProfile[]>([])
+  const [children, setChildren] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [parent, setParent] = useState<ParentData | null>(null)
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
@@ -44,11 +38,12 @@ export default function ParentDashboard() {
       const { data: userData } = await supabase.auth.getUser()
       const email = userData?.user?.email
 
-      // 2. Parents tablosunda parent id'yi bul
+      // 2. user_profiles tablosunda parent id'yi bul
       const { data: parentData } = await supabase
-        .from('parents')
+        .from('user_profiles')
         .select('id')
         .eq('email', email)
+        .eq('role', 'parent')
         .maybeSingle()
 
       if (!parentData) {
@@ -71,10 +66,11 @@ export default function ParentDashboard() {
 
       const studentIds = links.map(link => link.student_id)
 
-      // 4. students tablosundan çocukların profilini çek
+      // 4. user_profiles tablosundan çocukların profilini çek
       const { data: students } = await supabase
-        .from('students')
+        .from('user_profiles')
         .select('id, full_name, grade, email')
+        .eq('role', 'student')
         .in('id', studentIds)
 
       setChildren(students || [])
@@ -90,8 +86,9 @@ export default function ParentDashboard() {
         // öğrencilerin isimlerini de çekmek için join-like bir sorgu:
         const studentIds = pending.map(link => link.student_id)
         const { data: pendingStudents } = await supabase
-          .from('students')
+          .from('user_profiles')
           .select('id, full_name, grade')
+          .eq('role', 'student')
           .in('id', studentIds)
         // id eşleştirip gösterim için birleştir
         const invites = pending.map(inv => ({

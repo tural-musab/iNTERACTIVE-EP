@@ -20,18 +20,27 @@ export default function TeacherRegisterPage() {
 
     // Email zaten kayıtlı mı? (opsiyonel, ek kontrol)
     const { data: existing } = await supabase
-      .from('teachers')
+      .from('user_profiles')
       .select('id')
       .eq('email', email)
+      .eq('role', 'teacher')
       .maybeSingle()
     if (existing) {
       setStatus('Bu e-posta ile başvuru yapılmış.')
       return
     }
 
-    const { error } = await supabase
-      .from('teachers')
-      .insert([{ email, full_name: fullName }])
+    // Kullanıcıyı auth ile kaydet ve full_name bilgisini options.data ile gönder
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: 'temp_password_' + Math.random().toString(36).substring(7), // Geçici şifre
+      options: {
+        data: {
+          full_name: fullName, // Formdan gelen tam isim
+          role: 'teacher'      // Kullanıcı rolü
+        }
+      }
+    })
 
     if (error) {
       setStatus('Hata: ' + error.message)

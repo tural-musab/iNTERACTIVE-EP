@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabaseClient'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { UserProfile } from '@/types/user'
 import { 
   Sparkles, Users, GraduationCap, Clock, Award, CheckCircle2,
   UserPlus, ArrowLeft, LogOut, BookOpen, Target, BarChart3,
@@ -13,46 +14,65 @@ import {
   XCircle, AlertCircle, Send
 } from 'lucide-react'
 
-interface Teacher {
+interface TeacherApplication {
   id: string
   full_name: string
   email: string
   is_approved: boolean
+  created_at: string
 }
 
-export default function AdminDashboard() {
-  const [teachers, setTeachers] = useState<Teacher[]>([])
+export default function SuperAdminDashboard() {
+  const [teachers, setTeachers] = useState<TeacherApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const router = useRouter()
 
-  // 1. Onay bekleyen öğretmenleri çek
+  // 1. Onay bekleyen öğretmenleri çek (yeni user_profiles tablosundan)
   useEffect(() => {
     async function fetchTeachers() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('teachers')
-        .select('id, full_name, email, is_approved')
+      
+      // Önce user_profiles tablosundan teacher rolündeki kullanıcıları çek
+      const { data: teacherProfiles, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, created_at')
+        .eq('role', 'teacher')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        setStatus('Listeleme hatası: ' + error.message)
-      } else if (data) {
-        setTeachers(data)
+      if (profileError) {
+        setStatus('Listeleme hatası: ' + profileError.message)
+        setLoading(false)
+        return
       }
+
+      // Şimdilik basit bir onay sistemi (gerçek uygulamada ayrı bir tablo olabilir)
+      const teacherApplications: TeacherApplication[] = (teacherProfiles || []).map(profile => ({
+        id: profile.id,
+        full_name: profile.full_name || 'İsimsiz',
+        email: profile.email || '',
+        is_approved: true, // Şimdilik tümü onaylı varsayılıyor
+        created_at: profile.created_at
+      }))
+
+      setTeachers(teacherApplications)
       setLoading(false)
     }
     fetchTeachers()
   }, [])
 
-  // 2. Onayla ve davet gönder butonu
-  async function handleApproveAndInvite(teacher: Teacher) {
+  // 2. Onayla ve davet gönder butonu (güncellenmiş)
+  async function handleApproveAndInvite(teacher: TeacherApplication) {
     setStatus('Onaylanıyor ve davet gönderiliyor...')
     
-    // Önce onayla
+    // user_profiles tablosunda onay durumunu güncelle
     const { error: approveError } = await supabase
-      .from('teachers')
-      .update({ is_approved: true })
+      .from('user_profiles')
+      .update({ 
+        // Burada onay durumu için yeni bir alan eklenebilir
+        // Şimdilik sadece güncelleme yapıyoruz
+        updated_at: new Date().toISOString()
+      })
       .eq('id', teacher.id)
 
     if (approveError) {

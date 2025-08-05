@@ -61,6 +61,12 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
     setError('')
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('Kullanıcı bulunamadı')
+      }
+
       const contentData = formData.content_type === 'quiz' ? quizData : {
         description: formData.description,
         sections: []
@@ -74,7 +80,8 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
           grade: formData.grade,
           topic: formData.topic,
           content_type: formData.content_type,
-          content_data: contentData
+          content_data: contentData,
+          creator_id: user.id // Creator ID eklendi
         }])
 
       if (error) {

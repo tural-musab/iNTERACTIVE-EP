@@ -6,6 +6,9 @@ import supabase from '@/lib/supabaseClient'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { GamificationDashboard } from '@/components/gamification/GamificationDashboard'
 import { useGamificationStore } from '@/stores/gamificationStore'
+import { AnalyticsSummary } from '@/components/dashboard/AnalyticsSummary'
+import { DashboardLayout, DashboardHeader } from '@/components/dashboard/DashboardLayout'
+import { UserProfile } from '@/types/user'
 import { 
   Sparkles, Users, GraduationCap, Clock, Award, CheckCircle2,
   UserPlus, ArrowLeft, LogOut, BookOpen, Target, BarChart3,
@@ -20,16 +23,6 @@ import { PerformanceMonitor, OptimizedImage } from '@/components/mobile/Performa
 import { MobileTestSuite } from '@/components/mobile/MobileTestSuite';
 import { MobilePerformanceDashboard } from '@/components/mobile/MobilePerformanceDashboard';
 
-// --- 1. Öğrenci profil tipi ---
-interface StudentProfile {
-  id: string
-  user_id: string
-  email: string
-  full_name: string
-  grade: number
-  created_at: string
-}
-
 // --- 2. Veli davet formu (alt bileşen) ---
 function InviteParentForm({ studentId }: { studentId: string }) {
   const [parentEmail, setParentEmail] = useState('')
@@ -40,9 +33,10 @@ function InviteParentForm({ studentId }: { studentId: string }) {
 
     // 1. Veli zaten kayıtlı mı kontrol et
     const { data: existing } = await supabase
-      .from('parents')
+      .from('user_profiles')
       .select('id')
       .eq('email', parentEmail)
+      .eq('role', 'parent')
       .maybeSingle()
 
     if (existing) {
@@ -113,7 +107,7 @@ function InviteParentForm({ studentId }: { studentId: string }) {
 
 // --- 3. Student Dashboard Ana Bileşen ---
 export default function StudentDashboard() {
-  const [profile, setProfile] = useState<StudentProfile | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [editMode, setEditMode] = useState(false)
   const [newName, setNewName] = useState('')
@@ -125,6 +119,8 @@ export default function StudentDashboard() {
   const { 
     initialize, 
     isLoading: gamificationLoading,
+    error: gamificationError,
+    clearError,
     totalXP,
     level,
     currentStreak,
@@ -135,22 +131,46 @@ export default function StudentDashboard() {
   // Profil bilgilerini çek ve gamification'ı başlat
   useEffect(() => {
     async function fetchProfile() {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData?.user) {
-        router.push('/login')
-        return
+      try {
+        const { data: userData, error: authError } = await supabase.auth.getUser()
+        
+        if (authError) {
+          console.error('Auth error:', authError)
+          router.push('/login')
+          return
+        }
+        
+        if (!userData?.user) {
+          router.push('/login')
+          return
+        }
+        
+        const { data: student, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', userData.user.id)
+          .eq('role', 'student')
+          .single()
+          
+        if (error) {
+          console.error('Student profile error:', error)
+          setStatus('Profil yüklenirken hata oluştu: ' + error.message)
+        } else if (student) {
+          setProfile(student as unknown as UserProfile)
+          // Gamification'ı başlat
+          try {
+            await initialize(userData.user.id)
+          } catch (gamificationError) {
+            console.error('Gamification initialization error:', gamificationError)
+            setStatus('Gamification başlatılırken hata oluştu')
+          }
+        }
+      } catch (error) {
+        console.error('Profile fetch error:', error)
+        setStatus('Beklenmeyen bir hata oluştu')
+      } finally {
+        setLoading(false)
       }
-      const { data: student, error } = await supabase
-        .from('students')
-        .select('*')
-        .eq('user_id', userData.user.id)
-        .single()
-      if (student) {
-        setProfile(student as StudentProfile)
-        // Gamification'ı başlat
-        await initialize(userData.user.id)
-      }
-      setLoading(false)
     }
     fetchProfile()
   }, [router, initialize])
@@ -162,7 +182,7 @@ export default function StudentDashboard() {
     if (!profile) return
 
     const { error } = await supabase
-      .from('students')
+      .from('user_profiles')
       .update({
         full_name: newName,
         grade: Number(newGrade),
@@ -205,7 +225,18 @@ export default function StudentDashboard() {
             <User className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-4">Profil bulunamadı</h1>
-          <p className="text-gray-300">Profil bilgilerin çekilemedi.</p>
+          <p className="text-gray-300 mb-4">Profil bilgilerin çekilemedi.</p>
+          {status && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 max-w-md mx-auto">
+              <p className="text-red-200 text-sm">{status}</p>
+            </div>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-300"
+          >
+            Tekrar Dene
+          </button>
         </div>
       </div>
     )
@@ -316,54 +347,56 @@ export default function StudentDashboard() {
 
   // 4. Ana dashboard ekranı
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-pink-900">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 backdrop-blur-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-lg blur-lg opacity-75 animate-pulse"></div>
-                <div className="relative bg-gradient-to-r from-yellow-400 to-pink-500 p-2 rounded-lg">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Öğrenci Paneli</h1>
-                <span className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-pink-400 to-violet-500 text-white text-sm font-medium rounded-full">
-                  <GraduationCap className="w-4 h-4 mr-1" />
-                  {profile.grade}. Sınıf
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-all duration-300"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Ana Sayfa</span>
-              </button>
-              <ThemeToggle />
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  router.push('/login')
-                }}
-                className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Çıkış Yap</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <DashboardLayout>
+      <DashboardHeader
+        title="Öğrenci Paneli"
+        icon={Sparkles}
+        badge={{ text: `${profile.grade}. Sınıf`, icon: GraduationCap }}
+        onBack={() => router.push('/')}
+        onLogout={async () => {
+          await supabase.auth.signOut()
+          router.push('/login')
+        }}
+      />
 
       {/* Main Content */}
       <div className="relative z-10">
         <MobileContainer>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            {/* Error Display */}
+            {(status || gamificationError) && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
+              >
+                <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4 backdrop-blur-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm">⚠️</span>
+                      </div>
+                      <div>
+                        <p className="text-red-200 font-medium">Hata Oluştu</p>
+                        <p className="text-red-300 text-sm">
+                          {status || gamificationError}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setStatus('');
+                        clearError();
+                      }}
+                      className="text-red-300 hover:text-red-200 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Welcome Section - Mobile Optimized */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -495,152 +528,40 @@ export default function StudentDashboard() {
               </MobileGrid>
             </motion.div>
 
-            {/* Gamification Dashboard - Mobile Optimized */}
+            {/* Gamification Dashboard - Mobile Only */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="mb-8"
+              className="mb-8 md:hidden"
             >
               <MobileCard>
                 <GamificationDashboard />
               </MobileCard>
             </motion.div>
 
-            {/* Analytics Quick Overview - Mobile Optimized */}
+            {/* Analytics Quick Overview - Mobile Only */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mb-8"
+              className="mb-8 md:hidden"
             >
-              <MobileCard>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-xl flex items-center justify-center">
-                      <BarChart3 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <MobileText variant="h3" className="text-white">Analytics Özeti</MobileText>
-                      <MobileText variant="caption">Son performans durumun</MobileText>
-                    </div>
-                  </div>
-                  <MobileButton
-                    onClick={() => router.push('/analytics')}
-                    variant="primary"
-                    size="sm"
-                  >
-                    Detaylı Görüntüle
-                  </MobileButton>
-                </div>
-
-                <MobileGrid cols={{ mobile: 2, tablet: 4, desktop: 4 }} gap={{ mobile: 3, tablet: 4, desktop: 4 }}>
-                  <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <Target className="w-4 h-4 text-white" />
-                    </div>
-                    <MobileText variant="caption" className="text-gray-300">Ortalama Skor</MobileText>
-                    <MobileText variant="h4" className="text-white">
-                      {userStats?.averageAccuracy ? Math.round(userStats.averageAccuracy) : 0}%
-                    </MobileText>
-                  </div>
-
-                  <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <TrendingUp className="w-4 h-4 text-white" />
-                    </div>
-                    <MobileText variant="caption" className="text-gray-300">İyileşme</MobileText>
-                    <MobileText variant="h4" className="text-white">
-                      +{Math.floor(Math.random() * 15) + 5}%
-                    </MobileText>
-                  </div>
-
-                  <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-red-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <Clock className="w-4 h-4 text-white" />
-                    </div>
-                    <MobileText variant="caption" className="text-gray-300">Çalışma Süresi</MobileText>
-                    <MobileText variant="h4" className="text-white">
-                      {userStats?.totalTimeSpent ? Math.round(userStats.totalTimeSpent / 60) : 0} dk
-                    </MobileText>
-                  </div>
-
-                  <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <Activity className="w-4 h-4 text-white" />
-                    </div>
-                    <MobileText variant="caption" className="text-gray-300">Aktiflik</MobileText>
-                    <MobileText variant="h4" className="text-white">
-                      {currentStreak || 0} gün
-                    </MobileText>
-                  </div>
-                </MobileGrid>
-
-                {/* Quick Insights - Mobile Optimized */}
-                <div className="mt-6 p-4 bg-white/5 rounded-2xl border border-white/10">
-                  <h4 className="text-white font-semibold mb-3 flex items-center space-x-2">
-                    <Lightbulb className="w-4 h-4 text-yellow-400" />
-                    <span>Hızlı İçgörüler</span>
-                  </h4>
-                  <MobileSpacing size="sm">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <MobileText variant="caption" className="text-gray-300">
-                        Matematik konusunda güçlüsün!
-                      </MobileText>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <MobileText variant="caption" className="text-gray-300">
-                        Son 7 günde %12 iyileşme gösterdin
-                      </MobileText>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <MobileText variant="caption" className="text-gray-300">
-                        Fen Bilgisi konusunda daha fazla pratik yap
-                      </MobileText>
-                    </div>
-                  </MobileSpacing>
-                </div>
-              </MobileCard>
+              <AnalyticsSummary 
+                userStats={userStats} 
+                currentStreak={currentStreak} 
+                isMobile={true} 
+              />
             </motion.div>
 
-            {/* Parent Invite Form - Mobile Optimized */}
+            {/* Parent Invite Form - Mobile Only */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
+              className="md:hidden"
             >
-              <MobileCard>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                    <UserPlus className="w-8 h-8 text-white" />
-                  </div>
-                  <MobileText variant="h3" className="text-white mb-2">
-                    Veli Ekle
-                  </MobileText>
-                  <MobileText variant="body" className="text-gray-300 mb-6">
-                    Velini sisteme ekleyerek ilerlemeni takip etmesini sağla
-                  </MobileText>
-                  
-                  <div className="space-y-4">
-                    <input
-                      type="email"
-                      placeholder="Veli e-posta adresi"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <MobileButton
-                      onClick={() => alert('Veli davet gönderildi!')}
-                      variant="primary"
-                      size="lg"
-                      className="w-full"
-                    >
-                      Davet Gönder
-                    </MobileButton>
-                  </div>
-                </div>
-              </MobileCard>
+              <InviteParentForm studentId={profile.id} />
             </motion.div>
           </div>
         </MobileContainer>
@@ -712,94 +633,22 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Gamification Dashboard */}
-      <div className="mt-12">
+      {/* Gamification Dashboard - Desktop Only */}
+      <div className="mt-12 hidden md:block">
         <GamificationDashboard />
       </div>
 
-      {/* Analytics Quick Overview */}
-      <div className="mt-8">
-        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Analytics Özeti</h3>
-                <p className="text-gray-300 text-sm">Son performans durumun</p>
-              </div>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => router.push('/analytics')}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-300"
-            >
-              Detaylı Görüntüle
-            </motion.button>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Target className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-gray-300 text-xs">Ortalama Skor</p>
-              <p className="text-white font-bold">{userStats?.averageAccuracy ? Math.round(userStats.averageAccuracy) : 0}%</p>
-            </div>
-
-            <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-gray-300 text-xs">İyileşme</p>
-              <p className="text-white font-bold">+{Math.floor(Math.random() * 15) + 5}%</p>
-            </div>
-
-            <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-red-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-gray-300 text-xs">Çalışma Süresi</p>
-              <p className="text-white font-bold">{userStats?.totalTimeSpent ? Math.round(userStats.totalTimeSpent / 60) : 0} dk</p>
-            </div>
-
-            <div className="text-center p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Activity className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-gray-300 text-xs">Aktiflik</p>
-              <p className="text-white font-bold">{currentStreak || 0} gün</p>
-            </div>
-          </div>
-
-          {/* Quick Insights */}
-          <div className="mt-6 p-4 bg-white/5 rounded-2xl border border-white/10">
-            <h4 className="text-white font-semibold mb-3 flex items-center space-x-2">
-              <Lightbulb className="w-4 h-4 text-yellow-400" />
-              <span>Hızlı İçgörüler</span>
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-gray-300 text-sm">Matematik konusunda güçlüsün!</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                <span className="text-gray-300 text-sm">Son 7 günde %12 iyileşme gösterdin</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                <span className="text-gray-300 text-sm">Fen Bilgisi konusunda daha fazla pratik yap</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Analytics Quick Overview - Desktop Only */}
+      <div className="mt-8 hidden md:block">
+        <AnalyticsSummary 
+          userStats={userStats} 
+          currentStreak={currentStreak} 
+          isMobile={false} 
+        />
       </div>
 
-      {/* Parent Invite Form */}
-      <div className="mt-8">
+      {/* Parent Invite Form - Desktop Only */}
+      <div className="mt-8 hidden md:block">
         <InviteParentForm studentId={profile.id} />
       </div>
 
@@ -874,6 +723,6 @@ export default function StudentDashboard() {
           </MobileCard>
         </MobileContainer>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

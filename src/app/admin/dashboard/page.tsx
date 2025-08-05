@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabaseClient'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { UserProfile } from '@/types/user'
 import { 
   Sparkles, Users, GraduationCap, Clock, Award, CheckCircle2,
   UserPlus, ArrowLeft, LogOut, BookOpen, Target, BarChart3,
@@ -23,16 +24,9 @@ interface Content {
   created_at: string
 }
 
-interface User {
-  id: string
-  email: string
-  role: string
-  created_at: string
-}
-
 export default function AdminDashboard() {
   const [contents, setContents] = useState<Content[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const router = useRouter()
@@ -58,19 +52,22 @@ export default function AdminDashboard() {
 
         // Fetch users (students and teachers)
         const { data: userData, error: userError } = await supabase
-          .from('students')
-          .select('id, email, created_at')
+          .from('user_profiles')
+          .select('id, email, role, created_at')
+          .in('role', ['student', 'teacher'])
           .order('created_at', { ascending: false })
           .limit(5)
 
         if (userError) {
           console.error('User fetch error:', userError)
         } else {
-          const studentUsers = (userData || []).map(user => ({
-            ...user,
-            role: 'student'
+          const users = (userData || []).map(user => ({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            created_at: user.created_at
           }))
-          setUsers(studentUsers)
+          setUsers(users)
         }
 
       } catch (error) {
