@@ -57,25 +57,32 @@ export default function Home() {
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-4">
             <button 
               className="text-white hover:text-yellow-300 transition-all duration-300 transform hover:scale-110"
             >
               Ana Sayfa
             </button>
             <button 
+              onClick={() => router.push('/register')}
+              className="flex items-center space-x-2 bg-gradient-to-r from-yellow-400 to-pink-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-yellow-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <User className="w-5 h-5" />
+              <span>Kayıt Ol</span>
+            </button>
+            <button 
               onClick={() => router.push('/login')}
               className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-violet-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-pink-500/50 transition-all duration-300 transform hover:scale-105"
             >
               <GraduationCap className="w-5 h-5" />
-              <span>Öğrenci Girişi</span>
+              <span>Giriş Yap</span>
             </button>
             <button 
               onClick={() => router.push('/teacher/dashboard')}
               className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-full hover:shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105"
             >
               <UserCheck className="w-5 h-5" />
-              <span>Öğretmen Paneli</span>
+              <span>Öğretmen</span>
             </button>
             <ThemeToggle />
           </div>
@@ -101,10 +108,16 @@ export default function Home() {
               Ana Sayfa
             </button>
             <button 
+              onClick={() => { router.push('/register'); setMobileMenuOpen(false); }}
+              className="block w-full text-left text-white py-2 hover:text-yellow-300"
+            >
+              Kayıt Ol
+            </button>
+            <button 
               onClick={() => { router.push('/login'); setMobileMenuOpen(false); }}
               className="block w-full text-left text-white py-2 hover:text-yellow-300"
             >
-              Öğrenci Girişi
+              Giriş Yap
             </button>
             <button 
               onClick={() => { router.push('/teacher/dashboard'); setMobileMenuOpen(false); }}
@@ -143,12 +156,22 @@ export default function Home() {
               </p>
               <div className="flex flex-wrap gap-4">
                 <button 
+                  onClick={() => router.push('/register')}
+                  className="group relative px-8 py-4 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-full text-white font-semibold overflow-hidden transition-all duration-300 transform hover:scale-105"
+                >
+                  <span className="relative z-10 flex items-center space-x-2">
+                    <User className="w-5 h-5" />
+                    <span>Ücretsiz Kayıt Ol</span>
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+                <button 
                   onClick={() => router.push('/login')}
                   className="group relative px-8 py-4 bg-gradient-to-r from-pink-500 to-violet-600 rounded-full text-white font-semibold overflow-hidden transition-all duration-300 transform hover:scale-105"
                 >
                   <span className="relative z-10 flex items-center space-x-2">
                     <Play className="w-5 h-5" />
-                    <span>Hemen Başla</span>
+                    <span>Giriş Yap</span>
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </button>

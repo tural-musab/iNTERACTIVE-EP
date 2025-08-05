@@ -1,29 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import supabase from '@/lib/supabaseClient'
 import { 
   X, Plus, Upload, Download, FileText, FileSpreadsheet, 
   BookOpen, Target, Calculator, Users, Clock, Award,
   Edit, Trash2, MoveUp, MoveDown, CheckCircle2
 } from 'lucide-react'
-
-interface Question {
-  id: string
-  type: 'multiple_choice' | 'true_false'
-  question: string
-  options: string[]
-  correct_answer: number
-  points: number
-  explanation?: string
-}
-
-interface QuizData {
-  instructions: string
-  time_limit: number
-  questions: Question[]
-  passing_score: number
-}
+import type { Question, QuizContentData, QuestionType } from '@/types/quiz'
 
 interface ContentFormProps {
   onSuccess: () => void
@@ -43,17 +27,18 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
     description: ''
   })
 
-  const [quizData, setQuizData] = useState<QuizData>({
-    instructions: 'Her sorunun tek doğru cevabı vardır.',
-    time_limit: 15,
+  const [quizData, setQuizData] = useState<QuizContentData>({
     questions: [],
-    passing_score: 60
+    timeLimit: 15,
+    passingScore: 60,
+    totalPoints: 0,
+    instructions: 'Her sorunun tek doğru cevabı vardır.'
   })
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const supabase = createClient()
+  // supabase zaten global olarak import edildi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,9 +52,13 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
         throw new Error('Kullanıcı bulunamadı')
       }
 
-      const contentData = formData.content_type === 'quiz' ? quizData : {
-        description: formData.description,
-        sections: []
+      const contentData = formData.content_type === 'quiz' ? {
+        ...quizData,
+        totalPoints: quizData.questions.reduce((sum, q) => sum + q.points, 0)
+      } : {
+        content: formData.description,
+        attachments: [],
+        resources: []
       }
 
       const { error } = await supabase
@@ -106,11 +95,11 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
 
   const addQuestion = () => {
     const newQuestion: Question = {
-      id: Date.now().toString(),
+      id: Date.now(),
       type: 'multiple_choice',
       question: '',
       options: ['', '', '', ''],
-      correct_answer: 0,
+      correct: 0,
       points: 10,
       explanation: ''
     }
@@ -120,7 +109,7 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
     }))
   }
 
-  const updateQuestion = (questionId: string, field: QuestionField, value: string | number) => {
+  const updateQuestion = (questionId: number, field: QuestionField, value: string | number) => {
     setQuizData(prev => ({
       ...prev,
       questions: prev.questions.map(q => 
@@ -129,7 +118,7 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
     }))
   }
 
-  const updateOption = (questionId: string, optionIndex: number, value: string) => {
+  const updateOption = (questionId: number, optionIndex: number, value: string) => {
     setQuizData(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
@@ -143,14 +132,14 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
     }))
   }
 
-  const removeQuestion = (questionId: string) => {
+  const removeQuestion = (questionId: number) => {
     setQuizData(prev => ({
       ...prev,
       questions: prev.questions.filter(q => q.id !== questionId)
     }))
   }
 
-  const moveQuestion = (questionId: string, direction: 'up' | 'down') => {
+  const moveQuestion = (questionId: number, direction: 'up' | 'down') => {
     setQuizData(prev => {
       const questions = [...prev.questions]
       const index = questions.findIndex(q => q.id === questionId)
@@ -188,11 +177,11 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
       
       if (data.questions && Array.isArray(data.questions)) {
         const questions: Question[] = data.questions.map((q: any, index: number) => ({
-          id: Date.now().toString() + index,
-          type: 'multiple_choice',
+          id: Date.now() + index,
+          type: 'multiple_choice' as QuestionType,
           question: q.question || '',
           options: q.options || ['', '', '', ''],
-          correct_answer: q.correct || 0,
+          correct: q.correct || 0,
           points: q.points || 10,
           explanation: q.explanation || ''
         }))
@@ -217,11 +206,11 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
         const columns = lines[i].split(',').map(col => col.replace(/"/g, '').trim())
         if (columns.length >= 6) {
           questions.push({
-            id: Date.now().toString() + i,
-            type: 'multiple_choice',
+            id: Date.now() + i,
+            type: 'multiple_choice' as QuestionType,
             question: columns[0],
             options: [columns[1], columns[2], columns[3], columns[4]],
-            correct_answer: columns[5] === 'A' ? 0 : columns[5] === 'B' ? 1 : columns[5] === 'C' ? 2 : 3,
+            correct: columns[5] === 'A' ? 0 : columns[5] === 'B' ? 1 : columns[5] === 'C' ? 2 : 3,
             points: parseInt(columns[6]) || 10,
             explanation: columns[7] || ''
           })
@@ -399,7 +388,7 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
                       Talimatlar
                     </label>
                     <textarea
-                      value={quizData.instructions}
+                      value={quizData.instructions || ''}
                       onChange={(e) => setQuizData(prev => ({ ...prev, instructions: e.target.value }))}
                       className="w-full p-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent backdrop-blur-lg transition-all duration-300"
                       rows={2}
@@ -412,8 +401,8 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
                     </label>
                     <input
                       type="number"
-                      value={quizData.time_limit}
-                      onChange={(e) => setQuizData(prev => ({ ...prev, time_limit: parseInt(e.target.value) || 15 }))}
+                      value={quizData.timeLimit || 15}
+                      onChange={(e) => setQuizData(prev => ({ ...prev, timeLimit: parseInt(e.target.value) || 15 }))}
                       className="w-full p-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent backdrop-blur-lg transition-all duration-300"
                       min="1"
                       max="120"
@@ -426,8 +415,8 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
                     </label>
                     <input
                       type="number"
-                      value={quizData.passing_score}
-                      onChange={(e) => setQuizData(prev => ({ ...prev, passing_score: parseInt(e.target.value) || 60 }))}
+                      value={quizData.passingScore}
+                      onChange={(e) => setQuizData(prev => ({ ...prev, passingScore: parseInt(e.target.value) || 60 }))}
                       className="w-full p-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent backdrop-blur-lg transition-all duration-300"
                       min="0"
                       max="100"
@@ -541,8 +530,8 @@ export function ContentForm({ onSuccess, onCancel }: ContentFormProps) {
                                   <input
                                     type="radio"
                                     name={`correct_${question.id}`}
-                                    checked={question.correct_answer === optionIndex}
-                                    onChange={() => updateQuestion(question.id, 'correct_answer', optionIndex)}
+                                    checked={question.correct === optionIndex}
+                                    onChange={() => updateQuestion(question.id, 'correct', optionIndex)}
                                     className="text-yellow-400"
                                   />
                                   <input

@@ -179,7 +179,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div className="text-center mt-6">
+              <div className="text-center mt-6 space-y-3">
                 <button
                   type="button"
                   className="text-yellow-300 hover:text-yellow-200 underline text-sm transition-colors duration-300"
@@ -187,6 +187,19 @@ export default function LoginPage() {
                 >
                   Şifremi Unuttum?
                 </button>
+                
+                <div className="border-t border-white/20 pt-4">
+                  <p className="text-gray-300 text-sm mb-3">
+                    Henüz hesabınız yok mu?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/register')}
+                    className="w-full bg-gradient-to-r from-yellow-400 to-pink-500 text-white py-3 px-6 rounded-2xl font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all duration-300 transform hover:scale-105"
+                  >
+                    Ücretsiz Hesap Oluştur
+                  </button>
+                </div>
               </div>
             </form>
           </div>

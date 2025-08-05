@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ContentForm } from '@/components/content-form'
 import { ContentDetailModal } from '@/components/content-detail-modal'
-import { createClient } from '@/lib/supabase/client'
+import supabase from '@/lib/supabaseClient'
 import { 
   BookOpen, Brain, Trophy, Users, Star, ChevronRight, Menu, X, 
   Play, Target, Zap, Award, BarChart3, Clock, CheckCircle2,
@@ -13,37 +13,7 @@ import {
   User, GraduationCap, UserCheck, Plus, Edit, Trash2, Eye
 } from 'lucide-react'
 
-interface ContentData {
-  description?: string
-  sections?: Array<{
-    title: string
-    content: string
-    examples?: string[]
-  }>
-  instructions?: string
-  time_limit?: number
-  questions?: Array<{
-    id: number
-    question: string
-    type: string
-    options?: string[]
-    correct: number | boolean
-    points: number
-  }>
-  passing_score?: number
-}
-
-interface Content {
-  id: string
-  title: string
-  subject: string
-  grade: number
-  topic: string
-  content_type: 'lesson' | 'quiz'
-  content_data: ContentData
-  created_at: string
-  creator_id?: string | null
-}
+import type { Content } from '@/types/database'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -57,7 +27,7 @@ export default function TeacherDashboard() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedContentForDetail, setSelectedContentForDetail] = useState<Content | null>(null)
 
-  const supabase = createClient()
+  // supabase zaten global olarak import edildi
 
   const loadContents = useCallback(async () => {
     try {
@@ -575,7 +545,7 @@ export default function TeacherDashboard() {
                           <div className="text-center">
                             <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
                               <span className="text-2xl font-bold text-white">
-                                {quiz.content_data?.time_limit || 0}
+                                {(quiz.content_data as any)?.timeLimit || 0}
                               </span>
                             </div>
                             <p className="text-sm text-gray-300">Dakika</p>
@@ -583,7 +553,7 @@ export default function TeacherDashboard() {
                           <div className="text-center">
                             <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
                               <span className="text-2xl font-bold text-white">
-                                {quiz.content_data?.passing_score || 0}%
+                                {(quiz.content_data as any)?.passingScore || 0}%
                               </span>
                             </div>
                             <p className="text-sm text-gray-300">Geçme Notu</p>

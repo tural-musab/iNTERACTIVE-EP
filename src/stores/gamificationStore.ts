@@ -2,15 +2,29 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import supabase from '../lib/supabaseClient';
 import { PointSystem, PointTracker, StreakSystem, BadgeSystem, LevelSystem } from '../utils/gamification';
+import { 
+  logError, 
+  getErrorMessage, 
+  DatabaseError, 
+  AuthenticationError,
+  handleAsync,
+  retryAsync
+} from '../utils/errorHandler';
+import type { 
+  PointHistory as DatabasePointHistory,
+  UserBadge as DatabaseUserBadge,
+  DailyLeaderboard,
+  UserStats as DatabaseUserStats,
+  UserStreak as DatabaseUserStreak,
+  UserProfile,
+  PointReason,
+  BadgeCategory,
+  BadgeRarity,
+  StreakType
+} from '../types/database';
 
-// Types
-interface PointHistory {
-  id: string;
-  userId: string;
-  points: number;
-  reason: 'quiz_completion' | 'streak_bonus' | 'achievement' | 'daily_login' | 'speed_bonus' | 'perfect_score';
-  quizId?: string;
-  metadata?: Record<string, unknown>;
+// Database ile uyumlu types
+interface PointHistory extends Omit<DatabasePointHistory, 'created_at'> {
   createdAt: Date;
 }
 
@@ -19,8 +33,8 @@ interface Badge {
   name: string;
   description: string;
   icon: string;
-  category: 'achievement' | 'streak' | 'quiz' | 'social';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  category: BadgeCategory;
+  rarity: BadgeRarity;
   pointsReward: number;
   requirement: {
     type: string;
@@ -31,23 +45,13 @@ interface Badge {
   awardedAt?: Date;
 }
 
-interface LeaderboardEntry {
+interface LeaderboardEntry extends Omit<DailyLeaderboard, 'user_id' | 'daily_points'> {
   userId: string;
-  username: string;
-  avatar?: string;
   score: number;
-  rank: number;
   level: number;
 }
 
-interface UserStats {
-  totalQuizzesCompleted: number;
-  totalCorrectAnswers: number;
-  totalIncorrectAnswers: number;
-  averageAccuracy: number;
-  totalTimeSpent: number;
-  totalPointsEarned: number;
-  favoriteSubject?: string;
+interface UserStats extends Omit<DatabaseUserStats, 'last_activity' | 'created_at' | 'updated_at'> {
   lastActivity: Date;
 }
 
@@ -65,7 +69,7 @@ interface GamificationState {
   currentStreak: number;
   longestStreak: number;
   lastActivityDate: Date | null;
-  streakType: 'daily' | 'weekly' | 'quiz';
+  streakType: StreakType;
   
   // Badge System
   badges: Badge[];
@@ -92,7 +96,7 @@ interface GamificationState {
   
   // Actions
   initialize: (userId: string) => Promise<void>;
-  addPoints: (points: number, reason: PointHistory['reason'], metadata?: Record<string, unknown>) => Promise<void>;
+  addPoints: (points: number, reason: PointReason, metadata?: Record<string, unknown>) => Promise<void>;
   updateStreak: (activityType: 'quiz' | 'login') => Promise<void>;
   checkAndAwardBadges: () => Promise<void>;
   loadLeaderboard: (category?: string) => Promise<void>;
@@ -102,6 +106,8 @@ interface GamificationState {
   loadPointHistory: () => Promise<void>;
   resetNotifications: () => void;
   clearError: () => void;
+  setupRealtimeSubscriptions: () => void;
+  cleanup: () => void;
 }
 
 export const useGamificationStore = create<GamificationState>()(
@@ -147,31 +153,46 @@ export const useGamificationStore = create<GamificationState>()(
         lastLevelUp: null,
 
         // Actions
-        initialize: async (userId: string) => {
+        initialize: handleAsync(async (userId: string) => {
+          if (!userId) {
+            throw new AuthenticationError('Kullanıcı ID gerekli');
+          }
+
           set({ isLoading: true, error: null, userId });
           
           try {
-            // Load all gamification data in parallel
-            await Promise.all([
-              get().loadUserStats(),
-              get().loadLeaderboard(),
-              get().loadBadges(),
-              get().loadStreakData(),
-              get().loadPointHistory()
-            ]);
+            // Load all gamification data in parallel with retry logic
+            await retryAsync(async () => {
+              await Promise.all([
+                get().loadUserStats(),
+                get().loadLeaderboard(),
+                get().loadBadges(),
+                get().loadStreakData(),
+                get().loadPointHistory()
+              ]);
+            }, 2, 1000);
             
             // Check for badges after loading data
             await get().checkAndAwardBadges();
             
+            // Setup real-time subscriptions
+            get().setupRealtimeSubscriptions();
+            
           } catch (error) {
-            console.error('Gamification initialization error:', error)
-            set({ error: error instanceof Error ? error.message : 'Gamification verileri yüklenirken hata oluştu' });
+            const errorMessage = getErrorMessage(error);
+            logError(error as Error, { 
+              action: 'gamification_initialize', 
+              userId,
+              timestamp: new Date().toISOString()
+            });
+            set({ error: errorMessage });
+            throw new DatabaseError(`Gamification initialization failed: ${errorMessage}`);
           } finally {
             set({ isLoading: false });
           }
-        },
+        }),
 
-        addPoints: async (points: number, reason: PointHistory['reason'], metadata?: Record<string, unknown>) => {
+        addPoints: async (points: number, reason: PointReason, metadata?: Record<string, unknown>) => {
           const { userId } = get();
           if (!userId) return;
 
@@ -286,34 +307,40 @@ export const useGamificationStore = create<GamificationState>()(
           }
         },
 
-        loadUserStats: async () => {
+        loadUserStats: handleAsync(async () => {
           const { userId } = get();
-          if (!userId) return;
+          if (!userId) {
+            throw new AuthenticationError('Kullanıcı oturum bilgisi bulunamadı');
+          }
 
           try {
-            // Load user profile data
-            const { data: profileData, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('user_id', userId)
-              .single();
+            // Load user profile data with retry
+            const profileData = await retryAsync(async () => {
+              const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
 
-            if (profileError && profileError.code !== 'PGRST116') {
-              console.error('Profile data error:', profileError);
-              throw profileError;
-            }
+              if (error && error.code !== 'PGRST116') {
+                throw new DatabaseError(`Profile yüklenirken hata: ${error.message}`, { userId, error });
+              }
+              return data;
+            });
 
-            // Load user stats data
-            const { data: statsData, error: statsError } = await supabase
-              .from('user_stats')
-              .select('*')
-              .eq('user_id', userId)
-              .single();
+            // Load user stats data with retry
+            const statsData = await retryAsync(async () => {
+              const { data, error } = await supabase
+                .from('user_stats')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
 
-            if (statsError && statsError.code !== 'PGRST116') {
-              console.error('Stats data error:', statsError);
-              throw statsError;
-            }
+              if (error && error.code !== 'PGRST116') {
+                throw new DatabaseError(`Stats yüklenirken hata: ${error.message}`, { userId, error });
+              }
+              return data;
+            });
 
             // Update state with profile data
             if (profileData) {
@@ -364,10 +391,16 @@ export const useGamificationStore = create<GamificationState>()(
             }
             
           } catch (error) {
-            console.error('User stats loading error:', error);
-            set({ error: 'Kullanıcı verileri yüklenirken hata oluştu' });
+            const errorMessage = getErrorMessage(error);
+            logError(error as Error, { 
+              action: 'load_user_stats', 
+              userId,
+              timestamp: new Date().toISOString()
+            });
+            set({ error: errorMessage });
+            throw error;
           }
-        },
+        }),
 
         loadBadges: async () => {
           const { userId } = get();
@@ -495,6 +528,152 @@ export const useGamificationStore = create<GamificationState>()(
 
         clearError: () => {
           set({ error: null });
+        },
+
+        setupRealtimeSubscriptions: () => {
+          const { userId } = get();
+          if (!userId) return;
+
+          // Subscribe to user stats changes
+          supabase
+            .channel('user_stats')
+            .on('postgres_changes', 
+              { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'user_stats',
+                filter: `user_id=eq.${userId}`
+              }, 
+              (payload) => {
+                const updatedStats = payload.new as DatabaseUserStats;
+                set({
+                  userStats: {
+                    ...updatedStats,
+                    lastActivity: new Date(updatedStats.last_activity || new Date())
+                  }
+                });
+              }
+            )
+            .subscribe();
+
+          // Subscribe to user profile changes (XP, level)
+          supabase
+            .channel('user_profile')
+            .on('postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public', 
+                table: 'user_profiles',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const updatedProfile = payload.new as UserProfile;
+                const newTotalXP = updatedProfile.total_xp || 0;
+                const newLevel = updatedProfile.level || 1;
+                
+                set({
+                  totalXP: newTotalXP,
+                  level: newLevel,
+                  currentXP: newTotalXP % 100, // Simplified calculation
+                  xpToNextLevel: 100 - (newTotalXP % 100)
+                });
+              }
+            )
+            .subscribe();
+
+          // Subscribe to point history changes
+          supabase
+            .channel('point_history')
+            .on('postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'point_history', 
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const newPoint = payload.new as DatabasePointHistory;
+                const pointEntry: PointHistory = {
+                  ...newPoint,
+                  createdAt: new Date(newPoint.created_at || new Date())
+                };
+                
+                set(state => ({
+                  pointHistory: [pointEntry, ...state.pointHistory].slice(0, 50),
+                  totalPoints: state.totalPoints + newPoint.points
+                }));
+              }
+            )
+            .subscribe();
+
+          // Subscribe to user badges changes
+          supabase
+            .channel('user_badges')
+            .on('postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'user_badges',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const newBadge = payload.new as DatabaseUserBadge;
+                set(state => ({
+                  earnedBadgeIds: [...state.earnedBadgeIds, newBadge.badge_id],
+                  badges: state.badges.map(badge => 
+                    badge.id === newBadge.badge_id 
+                      ? { ...badge, earned: true, awardedAt: new Date(newBadge.awarded_at || new Date()) }
+                      : badge
+                  ),
+                  showBadgeNotification: true,
+                  lastEarnedBadge: state.badges.find(b => b.id === newBadge.badge_id) || null
+                }));
+              }
+            )
+            .subscribe();
+
+          // Subscribe to user streaks changes
+          supabase
+            .channel('user_streaks')
+            .on('postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'user_streaks',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const updatedStreak = payload.new as DatabaseUserStreak;
+                set({
+                  currentStreak: updatedStreak.current_streak || 0,
+                  longestStreak: updatedStreak.longest_streak || 0,
+                  lastActivityDate: updatedStreak.last_activity_date ? new Date(updatedStreak.last_activity_date) : null,
+                  streakType: updatedStreak.streak_type || 'daily'
+                });
+              }
+            )
+            .subscribe();
+
+          // Subscribe to daily leaderboard changes
+          supabase
+            .channel('daily_leaderboard')
+            .on('postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'daily_leaderboard'
+              },
+              () => {
+                // Reload leaderboard when any change occurs
+                get().loadLeaderboard();
+              }
+            )
+            .subscribe();
+        },
+
+        cleanup: () => {
+          // Remove all subscriptions
+          supabase.removeAllChannels();
         }
       }),
       {

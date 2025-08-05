@@ -6,40 +6,8 @@ import {
   X, Edit, Trash2, BookOpen, Target, Calculator, Users, 
   Clock, Award, CheckCircle2, Eye, Settings, BarChart3
 } from 'lucide-react'
-
-interface Question {
-  id: number
-  question: string
-  type: string
-  options?: string[]
-  correct: number | boolean
-  points: number
-  explanation?: string
-}
-
-interface ContentData {
-  description?: string
-  sections?: Array<{
-    title: string
-    content: string
-    examples?: string[]
-  }>
-  instructions?: string
-  time_limit?: number
-  questions?: Question[]
-  passing_score?: number
-}
-
-interface Content {
-  id: string
-  title: string
-  subject: string
-  grade: number
-  topic: string
-  content_type: 'lesson' | 'quiz'
-  content_data: ContentData
-  created_at: string
-}
+import type { Content } from '@/types/database'
+import type { Question, QuizContentData, LessonContentData } from '@/types/quiz'
 
 interface ContentDetailModalProps {
   content: Content | null
@@ -154,10 +122,10 @@ export function ContentDetailModal({ content, isOpen, onClose, onContentUpdate }
                   </div>
 
                   {/* Description */}
-                  {content.content_data?.description && (
+                  {(content.content_data as any)?.content && (
                     <div className="bg-white/5 rounded-2xl p-4">
                       <h3 className="text-white font-semibold mb-2">Açıklama</h3>
-                      <p className="text-gray-300">{content.content_data.description}</p>
+                      <p className="text-gray-300">{(content.content_data as any)?.content}</p>
                     </div>
                   )}
 
@@ -176,14 +144,14 @@ export function ContentDetailModal({ content, isOpen, onClose, onContentUpdate }
                           <Clock className="w-5 h-5 text-orange-400" />
                           <span className="text-white font-medium">Süre</span>
                         </div>
-                        <p className="text-gray-300">{content.content_data.time_limit || 15} dakika</p>
+                        <p className="text-gray-300">{(content.content_data as any)?.timeLimit || 15} dakika</p>
                       </div>
                       <div className="bg-white/5 rounded-2xl p-4">
                         <div className="flex items-center space-x-2 mb-2">
                           <Award className="w-5 h-5 text-yellow-400" />
                           <span className="text-white font-medium">Geçme Puanı</span>
                         </div>
-                        <p className="text-gray-300">%{content.content_data.passing_score || 60}</p>
+                        <p className="text-gray-300">%{(content.content_data as any)?.passingScore || 60}</p>
                       </div>
                     </div>
                   )}
@@ -289,8 +257,8 @@ export function ContentDetailModal({ content, isOpen, onClose, onContentUpdate }
                           <h4 className="text-white font-medium mb-2">Quiz Ayarları</h4>
                           <div className="space-y-2 text-sm text-gray-300">
                             <p><span className="text-yellow-300">Soru Sayısı:</span> {content.content_data?.questions?.length || 0}</p>
-                            <p><span className="text-yellow-300">Süre:</span> {content.content_data?.time_limit || 0} dakika</p>
-                            <p><span className="text-yellow-300">Geçme Puanı:</span> {content.content_data?.passing_score || 0}%</p>
+                            <p><span className="text-yellow-300">Süre:</span> {(content.content_data as any)?.timeLimit || 0} dakika</p>
+                            <p><span className="text-yellow-300">Geçme Puanı:</span> {(content.content_data as any)?.passingScore || 0}%</p>
                             <p><span className="text-yellow-300">Oluşturulma:</span> {new Date(content.created_at).toLocaleDateString('tr-TR')}</p>
                           </div>
                         </div>
@@ -397,14 +365,14 @@ export function ContentDetailModal({ content, isOpen, onClose, onContentUpdate }
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">Açıklama</label>
                   <textarea
-                    value={editingContent.content_data?.description || ''}
+                    value={(editingContent.content_data as any)?.content || ''}
                     onChange={(e) => setEditingContent(prev => {
                       if (!prev) return prev;
                       return {
                         ...prev,
                         content_data: {
                           ...prev.content_data,
-                          description: e.target.value
+                          content: e.target.value
                         }
                       };
                     })}

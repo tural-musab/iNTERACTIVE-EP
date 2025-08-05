@@ -1,20 +1,8 @@
-// Merkezi kullanıcı profili arayüzü
-export interface UserProfile {
-  id: string;
-  user_id: string;
-  email: string;
-  full_name: string;
-  role: 'student' | 'parent' | 'teacher' | 'admin' | 'superadmin';
-  grade?: number; // Sadece öğrenciler için
-  created_at: string;
-  updated_at: string;
-  
-  // Gamification alanları
-  total_xp?: number;
-  level?: number;
-  avatar?: string;
-  display_name?: string;
-  bio?: string;
+import type { UserProfile as DatabaseUserProfile, UserRole } from './database'
+
+// Database ile tam uyumlu kullanıcı profili arayüzü
+export interface UserProfile extends DatabaseUserProfile {
+  // Database'deki tüm alanlar dahil
 }
 
 // Kullanıcı kayıt formu için tip
@@ -22,7 +10,7 @@ export interface UserRegistrationData {
   email: string;
   password: string;
   full_name: string;
-  role: UserProfile['role'];
+  role: UserRole;
   grade?: number;
 }
 

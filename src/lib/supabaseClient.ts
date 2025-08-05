@@ -1,11 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as supabaseCreateClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database'
 
-// Singleton pattern - tek bir instance oluştur
-let supabaseClient: ReturnType<typeof createClient> | null = null
+// Type-safe Supabase client type
+type SupabaseClient = ReturnType<typeof supabaseCreateClient<Database>>
 
-const createSupabaseClient = () => {
+// Singleton pattern - tek bir instance oluştur ve type safety ekle
+let supabaseClient: SupabaseClient | null = null
+
+const createSupabaseClient = (): SupabaseClient => {
   if (!supabaseClient) {
-    supabaseClient = createClient(
+    supabaseClient = supabaseCreateClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -21,4 +25,7 @@ const createSupabaseClient = () => {
 
 const supabase = createSupabaseClient()
 
-export default supabase 
+export default supabase
+
+// Alternative export for consistency
+export const createClient = createSupabaseClient 
